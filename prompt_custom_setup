@@ -1,0 +1,351 @@
+# vim:ft=zsh ts=2 sw=2 sts=2
+##
+# # README
+#
+# In order for this theme to render correctly, you will need
+# [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts).
+#
+#
+# # Goals
+#
+# The aim of this theme is to only show you *relevant* information. Like most
+# prompts, it will only show git information when in a git working directory.
+
+# Setup Base16 colouring
+BASE16_00=000
+BASE16_01=010
+BASE16_02=011
+BASE16_03=012
+BASE16_04=013
+BASE16_05=008
+BASE16_06=007
+BASE16_07=015
+BASE16_08=001
+BASE16_09=009
+BASE16_0A=003
+BASE16_0B=002
+BASE16_0C=006
+BASE16_0D=004
+BASE16_0E=005
+BASE16_0F=014
+
+CURRENT_BG='NONE'
+PRIMARY_FG=$BASE16_00
+
+# Characters
+SEGMENT_SEPARATOR="\ue0b4"
+SEGMENT_SPLIT="\ue0b5"
+RSEGMENT_SEPARATOR="\ue0b6"
+RSEGMENT_SPLIT="\ue0b7"
+PLUSMINUS="\u00b1"
+BRANCH="\ue0a0"
+DETACHED="\u27a6"
+CROSS="\u2718"
+LIGHTNING="\u26a1"
+GEAR="\u2699"
+HOUSE="\uf015"
+KEYBOARD="\uF0ED" #2328
+LOCK="\uf023"
+_USER="\uf007"
+RUBY="\ue791"
+EMBER="\ue773"
+#G_STATION="\uf417"
+G_STATION="--"
+G_ADDED="\uF055"
+G_MODIFIED="\uF06a"
+G_UNTRACKED="\uF05b"
+G_DELETED="\uF056"
+G_TAG="\uF028"
+G_GITHUB="\uF408"
+G_AHEAD="\uF128"
+G_BEHIND="\uF129"
+G_BRANCH="\uF418"
+G_REBASE="\uF490"
+G_TARGET="\uF058"
+G_STASHED="\uF429"
+
+# Begin a segment %{$bg%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR%{$fg%}
+# Takes two arguments, background and foreground. Both can be omitted,
+# rendering default background/foreground.
+prompt_segment() {
+  local bg fg
+  [[ -n $1 ]] && bg="%K{$1}" || bg="%k"
+  [[ -n $2 ]] && fg="%F{$2}" || fg="%f"
+  if [[ $CURRENT_BG != 'NONE' && $1 != $CURRENT_BG ]]; then
+    print -n "%{$bg%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR%{$fg%}"
+  else
+    if [[ $1 == $CURRENT_BG ]]; then
+      print -n "%{$bg%F{$PRIMARY_FG}%}$SEGMENT_SPLIT%{$fg%}"
+    else
+      print -n "%{$bg%}%{$fg%}"
+    fi
+  fi
+  CURRENT_BG=$1
+  [[ -n $3 ]] && print -n $3
+}
+
+# End the prompt, closing any open segments
+prompt_end() {
+  if [[ -n $CURRENT_BG ]]; then
+    print -n "%{%k%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR"
+  else
+    print -n "%{%k%}"
+  fi
+  print -n "%{%f%}"
+  CURRENT_BG=''
+}
+
+### Prompt components
+# Each component will draw itself, and hide itself if no information needs to be shown
+
+# Context:  / hostname > username
+prompt_context() {
+  local user=`whoami`
+
+  if [[ -n "$SSH_CONNECTION" ]]; then
+    prompt_segment $BASE16_0F $BASE16_0A " $LOCK %m "
+  else
+    prompt_segment $BASE16_0F $BASE16_0A " $HOUSE %m "
+  fi
+
+  if [[ $UID == 0 ]] then
+    prompt_segment $BASE16_08 $BASE16_07 " %n "
+  else
+    prompt_segment $BASE16_0D $BASE16_00 " %n "
+  fi
+}
+
+# Git: branch/detached head, dirty status
+prompt_git() {
+  local color ref
+  is_dirty() {
+    test -n "$(git status --porcelain --ignore-submodules)"
+  }
+  is_deattached() {
+    test "$(git rev-parse --abbrev-ref HEAD)" = "HEAD"
+  }
+  ref="$git_info"
+  if [[ -n "$ref" ]]; then
+    if is_dirty; then
+      color=$BASE16_0A
+      ref="${ref} $PLUSMINUS"
+    else
+      color=$BASE16_0B
+      ref="${ref} "
+    fi
+
+    if ! (is_deattached); then
+      ref="$BRANCH $git_info[branch]"
+    else
+      ref="$DETACHED $git_info[commit]"
+    fi
+    prompt_segment $BASE16_00 $color
+    print -Pn " $ref"
+
+    if [[ -n "$ref" ]]; then
+      tag="$(git describe --exact-match --tags 2> /dev/null)"
+    fi
+
+    # change from position to upstream
+    #if [[ -n "$git_info[position]" ]]; then
+    #  prompt_segment $BASE16_00 $BASE16_07 "$git_info[position]"
+    #fi
+    # staged_ready_to_commit
+    #if [[ -n "$git_info[commit]" ]]; then
+    #  prompt_segment $BASE16_00 $BASE16_0C " $G_TARGET$git_info[commit]"
+    #fi
+    if [[ -n "$git_info[modified]" ]]; then
+      prompt_segment $BASE16_00 $BASE16_0B "$G_ADDED$git_info[modified]"
+    fi
+    # modified_cached
+    #if [[ -n "$git_info[commit]" ]]; then
+    #  prompt_segment $BASE16_00 $BASE16_0A "$G_ADDED$git_info[commit]"
+    #fi
+    if [[ -n "$git_info[deleted]" ]]; then
+      prompt_segment $BASE16_00 $BASE16_08 "$G_DELETED$git_info[deleted]"
+    fi
+    if [[ -n "$git_info[untracked]" ]]; then
+      prompt_segment $BASE16_00 $BASE16_0D "$G_UNTRACKED$git_info[untracked]"
+    fi
+    if [[ -n "$tag" ]]; then
+      prompt_segment $BASE16_00 $BASE16_0F "$G_TAG$tag"
+    fi
+    if [[ -n "$git_info[stashed]" ]]; then
+      prompt_segment $BASE16_00 $BASE16_0D "$G_STASHED$git_info[stashed]"
+    fi
+
+  fi
+}
+
+# Dir: current working directory
+prompt_dir() {
+  local pwd="${PWD/#$HOME/~}"
+  pwd_list=(${(s:/:)pwd})
+  if [[ "$pwd_list[1]" != "~" ]] then
+    pwd_list=("/" $pwd_list[@])
+  fi
+
+  arraylength=$#pwd_list
+
+  if [[ $arraylength > 1 ]] then
+    if [[ $arraylength > 4 ]] then
+      print -n "⋯/"
+      while [[ $arraylength > 3 ]] do
+        shift pwd_list
+        arraylength=$#pwd_list
+      done
+    fi
+  fi
+
+  # use for loop read all values and indexes
+  for (( i=1; i<${arraylength}+1; i++ ));
+  do
+    if [[ $i = $arraylength ]] then
+      print -n "${pwd_list[$i]}"
+    else
+      if [[ ${pwd_list[$i]} == "/" ]]; then
+        print -n "${pwd_list[$i]}"
+      else
+        print -n "${pwd_list[$i]}/"
+      fi
+    fi
+  done
+}
+
+# Status:
+# - was there an error
+# - am I root
+# - are there background jobs?
+prompt_status() {
+  local symbols
+  symbols=()
+  [[ $RETVAL -ne 0 ]] && symbols+="%{%F{red}%}$CROSS"
+  [[ $UID -eq 0 ]] && symbols+="%{%F{yellow}%}$LIGHTNING"
+  [[ $(jobs -l | wc -l) -gt 0 ]] && symbols+="%{%F{cyan}%}$GEAR"
+
+  [[ -n "$symbols" ]] && prompt_segment $PRIMARY_FG default " $symbols "
+}
+
+prompt_custom_setup() {
+  autoload -Uz add-zsh-hook
+
+  prompt_opts=(cr subst percent)
+
+  add-zsh-hook precmd prompt_custom_precmd
+
+  # Git styling
+  # see modules/git/git-info for details
+  zstyle ':prezto:module:git:info' verbose yes
+  zstyle ':prezto:module:git:info:action' format '%s'
+  zstyle ':prezto:module:git:info:added' format ' %F{120}${G_ADDED}%a%f'
+  zstyle ':prezto:module:git:info:ahead' format '%A'
+  zstyle ':prezto:module:git:info:behind' format '%B'
+  zstyle ':prezto:module:git:info:dirty' format ' (D)' #'%D'
+  zstyle ':prezto:module:git:info:clean' format ' (C)' #'%C'
+  zstyle ':prezto:module:git:info:branch' format '%F{033}${G_BRANCH} %b%f'
+  zstyle ':prezto:module:git:info:commit' format '${G_BRANCH} %.7c'
+  zstyle ':prezto:module:git:info:deleted' format ' %F{161}${G_DELETED}%d%f'
+  zstyle ':prezto:module:git:info:modified' format ' %F{229}${G_MODIFIED}%m%f'
+  zstyle ':prezto:module:git:info:position' format '${G_BRANCH} %p'
+  zstyle ':prezto:module:git:info:renamed' format '%r'
+  zstyle ':prezto:module:git:info:stashed' format ' %F{039}%S%f'
+  zstyle ':prezto:module:git:info:unmerged' format '%U'
+  zstyle ':prezto:module:git:info:untracked' format ' %F{247}${G_UNTRACKED}%u%f'
+  zstyle ':prezto:module:git:info:keys' format \
+    'action' '%s' \
+    'added' '%a'\
+    'branch' '%b' \
+    'commit' '%c' \
+    'deleted' '%d' \
+    'modified' '%m' \
+    'position' '%p' \
+    'stashed' '%S' \
+    'untracked' '%u' \
+    'prompt' '%F{068}${G_STATION}\%\B(\%\b%F{092}${G_GITHUB}%f $(coalesce "%b" "%p" "%c")%a%m%d%u%s%r%S%U%A%B\%\B%F{068})\%\b' \
+}
+
+prompt_custom_setup "$@"
+
+# Set editor-info parameters.
+zstyle ':prezto:module:editor:info:completing' format '%B%F{7}...%f%b'
+zstyle ':prezto:module:editor:info:keymap:primary' format '%B%F{074}❯%F{074}❯%F{074}❯%f%b'
+zstyle ':prezto:module:editor:info:keymap:primary:overwrite' format '%F{3}♺%f'
+zstyle ':prezto:module:editor:info:keymap:alternate' format '%B%F{2}❮%F{3}❮%F{1}❮%f%b'
+
+# Context:  / hostname
+prompt_hostname() {
+  if [[ -n "$SSH_CONNECTION" ]]; then
+    print -n "%{%F{230}%}${LOCK} %m%f"
+  else
+    print -n "%{%F{230}%}${HOUSE} %m%f"
+  fi
+}
+
+prompt_username() {
+  if [[ $UID == 0 ]] then
+    print -n "%{%F{201}%}${_USER} %n%f"
+  else
+    print -n "%{%F{123}%}${_USER} %n%f"
+  fi
+}
+
+function rvm_info_for_prompt {
+  _gemfile=$(find_up "Gemfile")
+  if [ -e "$_gemfile/Gemfile" ]; then
+    rvm_prompt_path=$(which rvm-prompt)
+    ruby_version=$($rvm_prompt_path)
+    if [ -n "$ruby_version" ]; then
+      print -n "%F{068}${G_STATION}%B(%b%{%F{$BASE16_08}%}$RUBY $ruby_version%B%F{068})%b"
+    fi
+  fi
+}
+
+function ember_info_for_prompt {
+    _package=$(find_up "package.json")
+    if [ -e "$_package/package.json" ]; then
+    ember_cli=$(cat $_package/package.json | grep '"ember-cli"' | awk '{print $2}' | sed 's/"//g' | sed 's/,//g')
+    if [ -n "$ember_cli" ]; then
+      print -n "%F{068}${G_STATION}%B(%b%{%F{209}%}$EMBER $ember_cli%B%F{068})%b"
+    fi
+  fi
+}
+
+## Main prompt
+prompt_custom_clear() {
+  print -n '%{%f%b%k%}'
+}
+
+prompt_custom_main() {
+  RETVAL=$?
+  CURRENT_BG='NONE'
+  print -n "%B%F{039}.%f%F{033}-%f%F{027}-%f%F{068}(%f%b$(prompt_hostname)%B%F{068})%b%F{068}${G_STATION}%B(%b$(prompt_username)%B%F{068})%b%F{068}${G_STATION}%B(%b$(prompt_dir)%B%F{068})%f%b"
+  print -n "${git_info:+${(e)git_info[prompt]}}"
+  print -n "$(rvm_info_for_prompt)"
+  print -n "$(ember_info_for_prompt)"
+  print -n "\n%b%F{045}\`%f%F{051}-%f%b${editor_info[keymap]}"
+}
+
+## Right prompt
+prompt_custom_right() {
+  RETVAL=$?
+  CURRENT_BG='NONE'
+  print -n "$(prompt_dir)"
+}
+
+prompt_custom_precmd() {
+  if (( $+functions[git-info] )); then
+    git-info
+  fi
+  PROMPT='$(prompt_custom_clear)$(prompt_custom_main) '
+  SPROMPT='zsh: correct %F{red}%R%f to %F{green}%r%f [nyae]? '
+  #RPROMPT='$(prompt_custom_right)'
+}
+
+find_up() {
+  _dir=$(pwd -P 2>/dev/null || command pwd)
+  while [ ! -e "$_dir/$1" ]; do
+    _dir=${_dir%/*}
+    if [ "$_dir" = "" ]; then break; fi
+  done
+  echo $_dir
+}

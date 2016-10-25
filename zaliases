@@ -1,0 +1,39 @@
+# Default Programs
+export EDITOR="nano"
+
+########################################################
+######################## ALIASES #######################
+########################################################
+
+## System
+alias shutdown='sudo shutdown -hP now'
+
+## Packages
+alias gz='tar -xzf'
+alias xz='tar -xJf'
+alias bz='tar -xvjf'
+
+## Directories
+alias ll='ls -lh'
+alias la='ls -lah'
+alias l='ls -h'
+alias C='clear'
+alias home='cd ~'
+alias ..='cd ..'
+alias k='exit'
+
+## Zsh Stuff
+alias eZ='$EDITOR ~/.zshrc'
+alias Z='source ~/.zshrc'
+
+## Editor Stuff
+alias eV='$EDITOR ~/.vimrc' # Vim
+alias e='$EDITOR'
+
+###########################################################
+######################## FUNCTIONS ########################
+###########################################################
+
+if [ -e $HOME/.zextra ]; then
+  . $HOME/.zextra
+fi
